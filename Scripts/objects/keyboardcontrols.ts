@@ -7,20 +7,22 @@ module objects {
         public moveLeft: boolean;
         public moveRight: boolean;
         public jump: boolean;
+          public enabled: boolean;
 
     
         // CONSTRUCTOR ++++++++++++++++++++++++++    
         constructor() {
-            
+            this.enabled = false;
+            document.addEventListener('keydown', this.onKeyDown.bind(this),false);
+            document.addEventListener('keyup', this.onKeyUp.bind(this),false);
             
         }
         
         //public methods
-        public enabled():boolean{            
-           document.addEventListener('keydown', this.onKeyDown.bind(this),false);
-            document.addEventListener('keyup', this.onKeyUp.bind(this),false); 
+      /*  public enabled():boolean{            
+            
             return true;
-        }
+        }*/
         
            public disabled():void{            
            document.removeEventListener('keydown',onkeydown,false);

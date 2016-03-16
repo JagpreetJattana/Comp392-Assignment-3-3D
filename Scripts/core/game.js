@@ -26,6 +26,8 @@ var Face3 = THREE.Face3;
 var Point = objects.Point;
 var CScreen = config.Screen;
 var Clock = THREE.Clock;
+var LineBasicMaterial = THREE.LineBasicMaterial;
+var Line = THREE.Line;
 //Custom Game Objects
 var gameObject = objects.gameObject;
 // Setup a Web Worker for Physijs
@@ -59,6 +61,11 @@ var game = (function () {
     var isGrounded;
     var velocity = new Vector3(0, 0, 0);
     var prevTime = 0;
+    var mouseControls;
+    var directionLineMaterial;
+    var directionLineGeometry;
+    var directionLine;
+    var direction;
     function init() {
         // Create to HTMLElements
         blocker = document.getElementById("blocker");
@@ -67,8 +74,10 @@ var game = (function () {
         havePointerLock = 'pointerLockElement' in document ||
             'mozPointerLockElement' in document ||
             'webkitPointerLockElement' in document;
-        //instantiating the keyboard controls
+        //instantiating the keyboard and mouse game controls
         keyboardControls = new objects.KeyboardControls();
+        mouseControls = new objects.MouseControls();
+        //check to see if there is pointerlock
         if (havePointerLock) {
             element = document.body;
             isGrounded = true;
@@ -137,11 +146,20 @@ var game = (function () {
         player.addEventListener('collision', function (event) {
             if (event.name === "Ground") {
                 console.log("Player hit the ground");
+                isGrounded = true;
             }
             if (event.name === "Sphere") {
                 console.log("Player hit the sphere");
             }
         });
+        //direction line
+        directionLineMaterial = new LineBasicMaterial({ color: 0xffff00 });
+        directionLineGeometry = new Geometry();
+        directionLineGeometry.vertices.push(new Vector3(0, 0, 0)); //starting point
+        directionLineGeometry.vertices.push(new Vector3(0, 0, -50)); //endong point
+        directionLine = new Line(directionLineGeometry, directionLineMaterial);
+        player.add(directionLine);
+        console.log("added direction line to the player");
         //sphereGeometry
         sphereGeometry = new SphereGeometry(2, 32, 32);
         sphereMaterial = Physijs.createMaterial(new LambertMaterial({ color: 0x00ff00 }), 0.4, 0);
@@ -150,7 +168,7 @@ var game = (function () {
         sphere.castShadow = true;
         sphere.receiveShadow = true;
         sphere.name = "Sphere";
-        scene.add(sphere);
+        //  scene.add(sphere);
         console.log("Sphere added");
         // add controls
         gui = new GUI();
@@ -168,12 +186,15 @@ var game = (function () {
     function pointerLockChange(event) {
         if (document.pointerLockElement === element) {
             // enable our mouse and keyboard controls
-            keyboardControls.enabled();
+            keyboardControls.enabled = true;
+            mouseControls.enabled = true;
             blocker.style.display = 'none';
         }
         else {
             // disable our mouse and keyboard controls
-            keyboardControls.disabled();
+            // keyboardControls.disabled();
+            keyboardControls.enabled = false;
+            mouseControls.enabled = false;
             blocker.style.display = '-webkit-box';
             blocker.style.display = '-moz-box';
             blocker.style.display = 'box';
@@ -207,32 +228,48 @@ var game = (function () {
     // Setup main game loop
     function gameLoop() {
         stats.update();
-        if (isGrounded) {
-            // velocity=new Vector3();
+        if (keyboardControls.enabled) {
+            velocity = new Vector3();
             var time = performance.now();
             var delta = (time - prevTime) / 1000;
-            if (keyboardControls.moveForward) {
-                console.log("move forward");
-                velocity.z -= 400.0 * delta;
-            }
-            if (keyboardControls.moveBackward) {
-                console.log("move backward");
-                velocity.z += 400.0 * delta;
-            }
-            if (keyboardControls.moveLeft) {
-                console.log("move left");
-                velocity.x += 400.0 * delta;
-            }
-            if (keyboardControls.moveRight) {
-                console.log("move right");
-                velocity.x += 400.0 * delta;
-            }
-            if (keyboardControls.jump) {
-                console.log("jumping");
-                velocity.y += 2000 * delta;
+            if (isGrounded) {
+                direction = new Vector3(0, 0, 0);
+                if (keyboardControls.moveForward) {
+                    console.log("Moving Forward");
+                    velocity.z -= 400.0 * delta;
+                }
+                if (keyboardControls.moveLeft) {
+                    console.log("Moving left");
+                    velocity.x -= 400.0 * delta;
+                }
+                if (keyboardControls.moveBackward) {
+                    console.log("Moving Backward");
+                    velocity.z += 400.0 * delta;
+                }
+                if (keyboardControls.moveRight) {
+                    console.log("Moving Right");
+                    velocity.x += 400.0 * delta;
+                }
+                if (keyboardControls.jump) {
+                    console.log("Jumping");
+                    velocity.y += 2000.0 * delta;
+                    if (player.position.y > 4) {
+                        isGrounded = false;
+                    }
+                }
+                player.setDamping(0.7, 0.1);
+                //player.rotation.y+=mouseControls.yaw;
+                player.setAngularVelocity(new Vector3(0, mouseControls.yaw, 0));
+                direction.addVectors(direction, velocity);
+                direction.applyQuaternion(player.quaternion);
+            } //isGrounded finished here
+            player.applyCentralForce(direction);
+        }
+        else {
+            if (Math.abs(player.getLinearVelocity().x) < 20 && Math.abs(player.getLinearVelocity().z) < 20) {
+                player.setAngularVelocity(new Vector3(0, 0, 0));
             }
         }
-        player.applyCentralForce(velocity);
         prevTime = time;
         // render using requestAnimationFrame
         requestAnimationFrame(gameLoop);

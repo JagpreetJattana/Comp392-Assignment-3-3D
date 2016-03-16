@@ -4,13 +4,15 @@ var objects;
     var KeyboardControls = (function () {
         // CONSTRUCTOR ++++++++++++++++++++++++++    
         function KeyboardControls() {
-        }
-        //public methods
-        KeyboardControls.prototype.enabled = function () {
+            this.enabled = false;
             document.addEventListener('keydown', this.onKeyDown.bind(this), false);
             document.addEventListener('keyup', this.onKeyUp.bind(this), false);
-            return true;
-        };
+        }
+        //public methods
+        /*  public enabled():boolean{
+              
+              return true;
+          }*/
         KeyboardControls.prototype.disabled = function () {
             document.removeEventListener('keydown', onkeydown, false);
             document.removeEventListener('keyup', onkeyup, false);
