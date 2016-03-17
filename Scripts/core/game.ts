@@ -15,7 +15,9 @@ import AxisHelper = THREE.AxisHelper;
 import LambertMaterial = THREE.MeshLambertMaterial;
 import MeshBasicMaterial = THREE.MeshBasicMaterial;
 import Material = THREE.Material;
+import PhongMaterial=THREE.MeshPhongMaterial;
 import Mesh = THREE.Mesh;
+import Texture=THREE.Texture;
 import Object3D = THREE.Object3D;
 import SpotLight = THREE.SpotLight;
 import PointLight = THREE.PointLight;
@@ -28,8 +30,8 @@ import Face3 = THREE.Face3;
 import Point = objects.Point;
 import CScreen = config.Screen;
 import Clock = THREE.Clock;
-import LineBasicMaterial=THREE.LineBasicMaterial;
-import Line=THREE.Line;
+import LineBasicMaterial = THREE.LineBasicMaterial;
+import Line = THREE.Line;
 
 //Custom Game Objects
 import gameObject = objects.gameObject;
@@ -55,8 +57,11 @@ var game = (() => {
     var instructions: HTMLElement;
     var spotLight: SpotLight;
     var groundGeometry: CubeGeometry;
-    var groundMaterial: Physijs.Material;
+    var groundPhysicsMaterial: Physijs.Material;
+    var groundMaterial:PhongMaterial;
     var ground: Physijs.Mesh;
+    var groundTexture:Texture;
+    var groundTextureNormal:Texture;
     var clock: Clock;
     var playerGeometry: CubeGeometry;
     var playerMaterial: Physijs.Material;
@@ -68,11 +73,11 @@ var game = (() => {
     var isGrounded: boolean;
     var velocity: Vector3 = new Vector3(0, 0, 0);
     var prevTime: number = 0;
-    var mouseControls:objects.MouseControls;
-    var directionLineMaterial:LineBasicMaterial;
-    var directionLineGeometry:Geometry;
-    var directionLine:Line;
-    var direction:any;
+    var mouseControls: objects.MouseControls;
+    var directionLineMaterial: LineBasicMaterial;
+    var directionLineGeometry: Geometry;
+    var directionLine: Line;
+    var direction: any;
 
     function init() {
         // Create to HTMLElements
@@ -86,7 +91,7 @@ var game = (() => {
 
         //instantiating the keyboard and mouse game controls
         keyboardControls = new objects.KeyboardControls();
-        mouseControls=new objects.MouseControls();
+        mouseControls = new objects.MouseControls();
 
         //check to see if there is pointerlock
         if (havePointerLock) {
@@ -150,9 +155,24 @@ var game = (() => {
         console.log("Added spotLight to scene");
 
         // Burnt Ground
+        groundTexture=new THREE.TextureLoader().load('../../Assets/images/GravelCobble.jpg');
+        groundTexture.wrapS=THREE.RepeatWrapping;
+        groundTexture.wrapT=THREE.RepeatWrapping;
+        groundTexture.repeat.set(4,4);
+        
+         groundTextureNormal=new THREE.TextureLoader().load('../../Assets/images/GravelCobbleNormal.png');
+        groundTextureNormal.wrapS=THREE.RepeatWrapping;
+        groundTextureNormal.wrapT=THREE.RepeatWrapping;
+        groundTextureNormal.repeat.set(4,4);
+        
+        groundMaterial=new PhongMaterial();
+        groundMaterial.map=groundTexture;
+        groundMaterial.bumpMap=groundTextureNormal;
+        groundMaterial.bumpScale=2;
+        
         groundGeometry = new BoxGeometry(32, 1, 32);
-        groundMaterial = Physijs.createMaterial(new LambertMaterial({ color: 0xe75d14 }), 0.4, 0);
-        ground = new Physijs.ConvexMesh(groundGeometry, groundMaterial, 0);
+        groundPhysicsMaterial = Physijs.createMaterial(groundMaterial, 0, 0);
+        ground = new Physijs.ConvexMesh(groundGeometry, groundPhysicsMaterial, 0);
         ground.receiveShadow = true;
         ground.name = "Ground";
         scene.add(ground);
@@ -169,6 +189,7 @@ var game = (() => {
         scene.add(player);
         console.log("Added Player to Scene");
 
+//collision check
         player.addEventListener('collision', (event) => {
             if (event.name === "Ground") {
                 console.log("Player hit the ground");
@@ -182,15 +203,27 @@ var game = (() => {
         });
 
 
-//direction line
+        //direction line
 
-directionLineMaterial=new LineBasicMaterial({color:0xffff00});
-directionLineGeometry=new Geometry();
-directionLineGeometry.vertices.push(new Vector3(0,0,0));//starting point
-directionLineGeometry.vertices.push(new Vector3(0,0,-50));//endong point
-directionLine=new Line(directionLineGeometry,directionLineMaterial);
-player.add(directionLine);
-console.log("added direction line to the player");
+        directionLineMaterial = new LineBasicMaterial({ color: 0xffff00 });
+        directionLineGeometry = new Geometry();
+        directionLineGeometry.vertices.push(new Vector3(0, 0, 0));//starting point
+        directionLineGeometry.vertices.push(new Vector3(0, 0, -50));//endong point
+        directionLine = new Line(directionLineGeometry, directionLineMaterial);
+        player.add(directionLine);
+        console.log("added direction line to the player");
+        //create parent child relationship between player and camera
+        
+       player.add(camera);
+     //  camera.position.set(0,1,0,);
+        
+        var tempGeom:Geometry=new PlaneGeometry(1,1);
+        var tempMat:LambertMaterial=new LambertMaterial({color:0xffff00});
+        tempMat.opacity=0.5;
+        tempMat.transparent=true;
+        var tempObj:Mesh=new Mesh(tempGeom,tempMat);
+        camera.add(tempObj);
+        tempObj.position.set(0,0,-5);
         //sphereGeometry
         sphereGeometry = new SphereGeometry(2, 32, 32);
         sphereMaterial = Physijs.createMaterial(new LambertMaterial({ color: 0x00ff00 }), 0.4, 0);
@@ -225,13 +258,13 @@ console.log("added direction line to the player");
         if (document.pointerLockElement === element) {
             // enable our mouse and keyboard controls
             keyboardControls.enabled = true;
-            mouseControls.enabled=true;
+            mouseControls.enabled = true;
             blocker.style.display = 'none';
         } else {
             // disable our mouse and keyboard controls
             // keyboardControls.disabled();
             keyboardControls.enabled = false;
-            mouseControls.enabled=false;
+            mouseControls.enabled = false;
             blocker.style.display = '-webkit-box';
             blocker.style.display = '-moz-box';
             blocker.style.display = 'box';
@@ -271,13 +304,58 @@ console.log("added direction line to the player");
     function gameLoop(): void {
         stats.update();
 
+    checkControls();
+
+     
+
+
+        // render using requestAnimationFrame
+        requestAnimationFrame(gameLoop);
+
+        // render the scene
+        renderer.render(scene, camera);
+    }
+
+    // Setup default renderer
+    function setupRenderer(): void {
+        renderer = new Renderer({ antialias: true });
+        renderer.setClearColor(0x404040, 1.0);
+        renderer.setPixelRatio(window.devicePixelRatio);
+        renderer.setSize(CScreen.WIDTH, CScreen.HEIGHT);
+        renderer.shadowMap.enabled = true;
+        console.log("Finished setting up Renderer...");
+    }
+
+    // Setup main camera for the scene
+    function setupCamera(): void {
+        camera = new PerspectiveCamera(35, config.Screen.RATIO, 0.1, 100);
+      //  camera.position.set(0, 10, 30);
+      //  camera.lookAt(new Vector3(0, 0, 0));
+        console.log("Finished setting up Camera...");
+    }
+    
+    //camera look function
+function cameraLook():void{
+    var zenith:number=THREE.Math.degToRad(90);
+    var nadir:number=THREE.Math.degToRad(-90);
+    var cameraPitch:number=camera.rotation.x+mouseControls.pitch;
+     //constrain the camera pitch
+    camera.rotation.x=THREE.Math.clamp(cameraPitch,nadir,zenith);
+    
+   
+    
+}
+
+//function reaponsible for player movement
+function checkControls():void{
+    
         if (keyboardControls.enabled) {
             velocity = new Vector3();
             var time: number = performance.now();
             var delta: number = (time - prevTime) / 1000;
 
             if (isGrounded) {
-                direction=new Vector3(0,0,0);
+                direction = new Vector3(0, 0, 0);
                 if (keyboardControls.moveForward) {
                     console.log("Moving Forward");
                     velocity.z -= 400.0 * delta;
@@ -301,59 +379,43 @@ console.log("added direction line to the player");
                         isGrounded = false;
                     }
                 }
-                
+
                 player.setDamping(0.7, 0.1);
-               //player.rotation.y+=mouseControls.yaw;
-               player.setAngularVelocity(new Vector3(0,mouseControls.yaw,0));
-               direction.addVectors(direction,velocity);
-               direction.applyQuaternion(player.quaternion);
-              //  console.log("Yaw: "+mouseControls.yaw);
-              //  console.log("Pitch: "+mouseControls.pitch);
+                //player.rotation.y+=mouseControls.yaw;
+                player.setAngularVelocity(new Vector3(0, mouseControls.yaw, 0));
+                direction.addVectors(direction, velocity);
+                direction.applyQuaternion(player.quaternion);
+                //  console.log("Yaw: "+mouseControls.yaw);
+                //  console.log("Pitch: "+mouseControls.pitch);
+                   if (Math.abs(player.getLinearVelocity().x) < 20 && Math.abs(player.getLinearVelocity().z) < 20) {
+
+                 player.applyCentralForce(direction);
+            }
+               
+               cameraLook();
 
 
             }//isGrounded finished here
-            player.applyCentralForce(direction);
-        }
-        else{
-            if(Math.abs(player.getLinearVelocity().x)<20&&Math.abs(player.getLinearVelocity().z)<20){
-                
-                 player.setAngularVelocity(new Vector3(0,0,0));
-            }
+            //reset pitch controls
+            mouseControls.pitch=0;
+            mouseControls.yaw=0;
+               prevTime = time;
+
             
+        }
+        
+        else {
+            
+
+                player.setAngularVelocity(new Vector3(0, 0, 0));
            
+
+
             //player.rotation.y=0;
         }
 
-        
-        prevTime = time;
-
-
-
-        // render using requestAnimationFrame
-        requestAnimationFrame(gameLoop);
-
-        // render the scene
-        renderer.render(scene, camera);
-    }
-
-    // Setup default renderer
-    function setupRenderer(): void {
-        renderer = new Renderer({ antialias: true });
-        renderer.setClearColor(0x404040, 1.0);
-        renderer.setPixelRatio(window.devicePixelRatio);
-        renderer.setSize(CScreen.WIDTH, CScreen.HEIGHT);
-        renderer.shadowMap.enabled = true;
-        console.log("Finished setting up Renderer...");
-    }
-
-    // Setup main camera for the scene
-    function setupCamera(): void {
-        camera = new PerspectiveCamera(35, config.Screen.RATIO, 0.1, 100);
-        camera.position.set(0, 10, 30);
-        camera.lookAt(new Vector3(0, 0, 0));
-        console.log("Finished setting up Camera...");
-    }
-
+    
+}
     window.onload = init;
 
     return {

@@ -13,7 +13,9 @@ var AxisHelper = THREE.AxisHelper;
 var LambertMaterial = THREE.MeshLambertMaterial;
 var MeshBasicMaterial = THREE.MeshBasicMaterial;
 var Material = THREE.Material;
+var PhongMaterial = THREE.MeshPhongMaterial;
 var Mesh = THREE.Mesh;
+var Texture = THREE.Texture;
 var Object3D = THREE.Object3D;
 var SpotLight = THREE.SpotLight;
 var PointLight = THREE.PointLight;
@@ -48,8 +50,11 @@ var game = (function () {
     var instructions;
     var spotLight;
     var groundGeometry;
+    var groundPhysicsMaterial;
     var groundMaterial;
     var ground;
+    var groundTexture;
+    var groundTextureNormal;
     var clock;
     var playerGeometry;
     var playerMaterial;
@@ -126,9 +131,21 @@ var game = (function () {
         scene.add(spotLight);
         console.log("Added spotLight to scene");
         // Burnt Ground
+        groundTexture = new THREE.TextureLoader().load('../../Assets/images/GravelCobble.jpg');
+        groundTexture.wrapS = THREE.RepeatWrapping;
+        groundTexture.wrapT = THREE.RepeatWrapping;
+        groundTexture.repeat.set(4, 4);
+        groundTextureNormal = new THREE.TextureLoader().load('../../Assets/images/GravelCobbleNormal.png');
+        groundTextureNormal.wrapS = THREE.RepeatWrapping;
+        groundTextureNormal.wrapT = THREE.RepeatWrapping;
+        groundTextureNormal.repeat.set(4, 4);
+        groundMaterial = new PhongMaterial();
+        groundMaterial.map = groundTexture;
+        groundMaterial.bumpMap = groundTextureNormal;
+        groundMaterial.bumpScale = 2;
         groundGeometry = new BoxGeometry(32, 1, 32);
-        groundMaterial = Physijs.createMaterial(new LambertMaterial({ color: 0xe75d14 }), 0.4, 0);
-        ground = new Physijs.ConvexMesh(groundGeometry, groundMaterial, 0);
+        groundPhysicsMaterial = Physijs.createMaterial(groundMaterial, 0, 0);
+        ground = new Physijs.ConvexMesh(groundGeometry, groundPhysicsMaterial, 0);
         ground.receiveShadow = true;
         ground.name = "Ground";
         scene.add(ground);
@@ -143,6 +160,7 @@ var game = (function () {
         player.name = "Player";
         scene.add(player);
         console.log("Added Player to Scene");
+        //collision check
         player.addEventListener('collision', function (event) {
             if (event.name === "Ground") {
                 console.log("Player hit the ground");
@@ -160,6 +178,14 @@ var game = (function () {
         directionLine = new Line(directionLineGeometry, directionLineMaterial);
         player.add(directionLine);
         console.log("added direction line to the player");
+        //create parent child relationship between player and camera
+        player.add(camera);
+        //  camera.position.set(0,1,0,);
+        var tempGeom = new PlaneGeometry(1, 1);
+        var tempMat = new LambertMaterial({ color: 0xffff00 });
+        var tempObj = new Mesh(tempGeom, tempMat);
+        camera.add(tempObj);
+        tempObj.position.set(0, 0, -5);
         //sphereGeometry
         sphereGeometry = new SphereGeometry(2, 32, 32);
         sphereMaterial = Physijs.createMaterial(new LambertMaterial({ color: 0x00ff00 }), 0.4, 0);
@@ -228,6 +254,38 @@ var game = (function () {
     // Setup main game loop
     function gameLoop() {
         stats.update();
+        checkControls();
+        // render using requestAnimationFrame
+        requestAnimationFrame(gameLoop);
+        // render the scene
+        renderer.render(scene, camera);
+    }
+    // Setup default renderer
+    function setupRenderer() {
+        renderer = new Renderer({ antialias: true });
+        renderer.setClearColor(0x404040, 1.0);
+        renderer.setPixelRatio(window.devicePixelRatio);
+        renderer.setSize(CScreen.WIDTH, CScreen.HEIGHT);
+        renderer.shadowMap.enabled = true;
+        console.log("Finished setting up Renderer...");
+    }
+    // Setup main camera for the scene
+    function setupCamera() {
+        camera = new PerspectiveCamera(35, config.Screen.RATIO, 0.1, 100);
+        //  camera.position.set(0, 10, 30);
+        //  camera.lookAt(new Vector3(0, 0, 0));
+        console.log("Finished setting up Camera...");
+    }
+    //camera look function
+    function cameraLook() {
+        var zenith = THREE.Math.degToRad(90);
+        var nadir = THREE.Math.degToRad(-90);
+        var cameraPitch = camera.rotation.x + mouseControls.pitch;
+        //constrain the camera pitch
+        camera.rotation.x = THREE.Math.clamp(cameraPitch, nadir, zenith);
+    }
+    //function reaponsible for player movement
+    function checkControls() {
         if (keyboardControls.enabled) {
             velocity = new Vector3();
             var time = performance.now();
@@ -262,35 +320,21 @@ var game = (function () {
                 player.setAngularVelocity(new Vector3(0, mouseControls.yaw, 0));
                 direction.addVectors(direction, velocity);
                 direction.applyQuaternion(player.quaternion);
+                //  console.log("Yaw: "+mouseControls.yaw);
+                //  console.log("Pitch: "+mouseControls.pitch);
+                if (Math.abs(player.getLinearVelocity().x) < 20 && Math.abs(player.getLinearVelocity().z) < 20) {
+                    player.applyCentralForce(direction);
+                }
+                cameraLook();
             } //isGrounded finished here
-            player.applyCentralForce(direction);
+            //reset pitch controls
+            mouseControls.pitch = 0;
+            mouseControls.yaw = 0;
+            prevTime = time;
         }
         else {
-            if (Math.abs(player.getLinearVelocity().x) < 20 && Math.abs(player.getLinearVelocity().z) < 20) {
-                player.setAngularVelocity(new Vector3(0, 0, 0));
-            }
+            player.setAngularVelocity(new Vector3(0, 0, 0));
         }
-        prevTime = time;
-        // render using requestAnimationFrame
-        requestAnimationFrame(gameLoop);
-        // render the scene
-        renderer.render(scene, camera);
-    }
-    // Setup default renderer
-    function setupRenderer() {
-        renderer = new Renderer({ antialias: true });
-        renderer.setClearColor(0x404040, 1.0);
-        renderer.setPixelRatio(window.devicePixelRatio);
-        renderer.setSize(CScreen.WIDTH, CScreen.HEIGHT);
-        renderer.shadowMap.enabled = true;
-        console.log("Finished setting up Renderer...");
-    }
-    // Setup main camera for the scene
-    function setupCamera() {
-        camera = new PerspectiveCamera(35, config.Screen.RATIO, 0.1, 100);
-        camera.position.set(0, 10, 30);
-        camera.lookAt(new Vector3(0, 0, 0));
-        console.log("Finished setting up Camera...");
     }
     window.onload = init;
     return {
