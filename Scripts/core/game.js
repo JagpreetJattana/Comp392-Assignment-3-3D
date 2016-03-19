@@ -51,6 +51,8 @@ var game = (function () {
     var spotLight;
     var groundGeometry;
     var groundPhysicsMaterial;
+    var mazePhysicsMaterial;
+    // var model:Physijs.Mesh;
     var groundMaterial;
     var ground;
     var groundTexture;
@@ -71,6 +73,8 @@ var game = (function () {
     var directionLineGeometry;
     var directionLine;
     var direction;
+    var loader;
+    var model; //THREE.Mesh;
     function init() {
         // Create to HTMLElements
         blocker = document.getElementById("blocker");
@@ -130,6 +134,9 @@ var game = (function () {
         spotLight.name = "Spot Light";
         scene.add(spotLight);
         console.log("Added spotLight to scene");
+        //Adding model to scene
+        loader = new THREE.JSONLoader();
+        loader.load('../../Assets/model/maze.json', addModel);
         // Burnt Ground
         groundTexture = new THREE.TextureLoader().load('../../Assets/images/GravelCobble.jpg');
         groundTexture.wrapS = THREE.RepeatWrapping;
@@ -183,8 +190,10 @@ var game = (function () {
         //  camera.position.set(0,1,0,);
         var tempGeom = new PlaneGeometry(1, 1);
         var tempMat = new LambertMaterial({ color: 0xffff00 });
+        tempMat.opacity = 0.5;
+        tempMat.transparent = true;
         var tempObj = new Mesh(tempGeom, tempMat);
-        camera.add(tempObj);
+        // camera.add(tempObj);
         tempObj.position.set(0, 0, -5);
         //sphereGeometry
         sphereGeometry = new SphereGeometry(2, 32, 32);
@@ -272,8 +281,8 @@ var game = (function () {
     // Setup main camera for the scene
     function setupCamera() {
         camera = new PerspectiveCamera(35, config.Screen.RATIO, 0.1, 100);
-        //  camera.position.set(0, 10, 30);
-        //  camera.lookAt(new Vector3(0, 0, 0));
+        // camera.position.set(0, 10, 30);
+        // camera.lookAt(new Vector3(0, 0, 0));
         console.log("Finished setting up Camera...");
     }
     //camera look function
@@ -283,6 +292,17 @@ var game = (function () {
         var cameraPitch = camera.rotation.x + mouseControls.pitch;
         //constrain the camera pitch
         camera.rotation.x = THREE.Math.clamp(cameraPitch, nadir, zenith);
+    }
+    //function to load model
+    function addModel(geometry, materials) {
+        //  var material =new THREE.MeshFaceMaterial( materials );
+        // playerMaterial = Physijs.createMaterial(new LambertMaterial({ color: 0x00ff00 }), 0.4, 0);
+        var mmazePhysicsMaterial = Physijs.createMaterial(new THREE.MeshFaceMaterial(materials), 0, 0);
+        model = new Physijs.Mesh(geometry, mmazePhysicsMaterial);
+        // model = new THREE.Mesh( geometry, material );
+        model.scale.set(5, 5, 5);
+        model.position.set(0, 0, 0);
+        scene.add(model);
     }
     //function reaponsible for player movement
     function checkControls() {
