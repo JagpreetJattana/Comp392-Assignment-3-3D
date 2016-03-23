@@ -186,7 +186,7 @@ var game = (function () {
         player.add(directionLine);
         console.log("added direction line to the player");
         //create parent child relationship between player and camera
-        player.add(camera);
+        //player.add(camera);
         //  camera.position.set(0,1,0,);
         var tempGeom = new PlaneGeometry(1, 1);
         var tempMat = new LambertMaterial({ color: 0xffff00 });
@@ -281,8 +281,8 @@ var game = (function () {
     // Setup main camera for the scene
     function setupCamera() {
         camera = new PerspectiveCamera(35, config.Screen.RATIO, 0.1, 100);
-        // camera.position.set(0, 10, 30);
-        // camera.lookAt(new Vector3(0, 0, 0));
+        camera.position.set(0, 10, 30);
+        camera.lookAt(new Vector3(0, 0, 0));
         console.log("Finished setting up Camera...");
     }
     //camera look function
@@ -295,13 +295,22 @@ var game = (function () {
     }
     //function to load model
     function addModel(geometry, materials) {
-        //  var material =new THREE.MeshFaceMaterial( materials );
+        var material = new THREE.MeshFaceMaterial(materials);
+        //  material.emissive = new THREE.Color(0xE7AB32);
         // playerMaterial = Physijs.createMaterial(new LambertMaterial({ color: 0x00ff00 }), 0.4, 0);
         var mmazePhysicsMaterial = Physijs.createMaterial(new THREE.MeshFaceMaterial(materials), 0, 0);
-        model = new Physijs.Mesh(geometry, mmazePhysicsMaterial);
+        var phongMaterial = new PhongMaterial({ color: 0xE7AB32 });
+        var phongMaterial = new PhongMaterial(materials);
+        phongMaterial.emissive = new THREE.Color(0xE7AB32);
+        var coinMaterial = Physijs.createMaterial((phongMaterial), 0.4, 0.6);
+        // var coinMaterial = Physijs.createMaterial((material), 0.4, 0.6);
+        // model = new Physijs.Mesh(geometry, mmazePhysicsMaterial);
+        model = new Physijs.ConvexMesh(geometry, coinMaterial);
         // model = new THREE.Mesh( geometry, material );
-        model.scale.set(5, 5, 5);
+        //  model.scale.set (5,5,5);
         model.position.set(0, 0, 0);
+        model.castShadow = true;
+        model.receiveShadow = true;
         scene.add(model);
     }
     //function reaponsible for player movement
